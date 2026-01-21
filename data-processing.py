@@ -46,6 +46,7 @@ def data_cleaning(df):
     """Preprocesses the data by checking and converting necessary columns."""
     check_data(df)
     df = change_to_num(df)
+    df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
     df["PaymentMethod"] = df["PaymentMethod"].map({
         'Electronic check': 'Electronic Check',
@@ -59,7 +60,7 @@ def data_cleaning(df):
 def categorical_encoding(df):
     """Encodes categorical columns using one-hot encoding."""
     encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-    encoded_data = pd.DataFrame(encoder.fit_transform(df[categorical_cols]), columns=encoder.get_feature_names_out(categorical_cols))
+    encoded_data = pd.DataFrame(encoder.fit_transform(df[categorical_cols]), columns=encoder.get_feature_names_out(categorical_cols), index=df.index)
     return encoded_data
 
 
