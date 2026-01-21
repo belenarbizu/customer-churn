@@ -1,4 +1,20 @@
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
+
+
+categorical_cols = [
+    'gender',
+    'MultipleLines',
+    'InternetService',
+    'OnlineSecurity',
+    'OnlineBackup',
+    'DeviceProtection',
+    'TechSupport',
+    'StreamingTV',
+    'StreamingMovies',
+    'Contract',
+    'PaymentMethod'
+]
 
 
 def open_file(file_path):
@@ -31,15 +47,28 @@ def data_cleaning(df):
     check_data(df)
     df = change_to_num(df)
     df.drop_duplicates(inplace=True)
+    df["PaymentMethod"] = df["PaymentMethod"].map({
+        'Electronic check': 'Electronic Check',
+        'Mailed check': 'Mailed Check',
+        'Bank transfer (automatic)': 'Bank Transfer',
+        'Credit card (automatic)': 'Credit Card'
+    })
     return df
+
+
+def categorical_encoding(df):
+    """Encodes categorical columns using one-hot encoding."""
+    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    encoded_data = pd.DataFrame(encoder.fit_transform(df[categorical_cols]), columns=encoder.get_feature_names_out(categorical_cols))
+    return encoded_data
 
 
 def main():
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     df = data_cleaning(df)
-    print("\nData after converting columns:")
-    print(df.info())
+    encoded_df = categorical_encoding(df)
+    data = pd.concat([df.drop(columns=categorical_cols), encoded_df], axis=1)
 
 
 if __name__ == '__main__':

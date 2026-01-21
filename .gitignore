@@ -1,0 +1,4 @@
+data/
+Telco-Customer-Churn.csv
+__pycache__/
+env/
