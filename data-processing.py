@@ -63,12 +63,18 @@ def categorical_encoding(df):
     return encoded_data
 
 
+def save_data(df, file_path):
+    """Saves the processed data to a CSV file."""
+    df.to_csv(file_path, index=False)
+
+
 def main():
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     df = data_cleaning(df)
     encoded_df = categorical_encoding(df)
     data = pd.concat([df.drop(columns=categorical_cols), encoded_df], axis=1)
+    save_data(data, 'data\\processed_data.csv')
 
 
 if __name__ == '__main__':
