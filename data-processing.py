@@ -77,6 +77,5 @@ def main():
     data = pd.concat([df.drop(columns=categorical_cols), encoded_df], axis=1)
     save_data(data, 'data\\processed_data.csv')
 
-
 if __name__ == '__main__':
     main()
