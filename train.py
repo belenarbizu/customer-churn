@@ -6,12 +6,14 @@ from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 import joblib
+from data_processing import Preprocessor
+from sklearn.pipeline import Pipeline
 
 
 param_grid = {
-    'n_estimators': [200, 300, 400, 500],
-    'max_depth': [None, 10, 20],
-    'min_samples_split': [2, 5, 10]
+    'classifier__n_estimators': [200, 300, 400, 500],
+    'classifier__max_depth': [None, 10, 20],
+    'classifier__min_samples_split': [2, 5, 10]
 }
 
 
@@ -30,8 +32,11 @@ def split_data(df, test_size=0.2, random_state=42):
 
 
 def create_model(X_train, y_train, X_test, y_test):
-    cv = RandomizedSearchCV(RandomForestClassifier(random_state=42, class_weight='balanced'), 
-                            param_grid, n_iter=10, cv=5, scoring='roc_auc', random_state=42, n_jobs=-1)
+    pipeline = Pipeline(steps=[
+        ('preprocessor', Preprocessor()),
+        ('classifier', RandomForestClassifier(random_state=42, class_weight='balanced'))
+    ])
+    cv = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=5, scoring='roc_auc', random_state=42, n_jobs=-1)
     cv.fit(X_train, y_train)
     return cv.best_estimator_
 
@@ -53,7 +58,7 @@ def save_model(model, file_path):
 
 
 def main():
-    file_path = 'data\\processed_data.csv'
+    file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
     # baseline_model(X_train, y_train, X_test, y_test)
