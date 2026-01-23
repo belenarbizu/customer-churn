@@ -8,6 +8,7 @@ from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 import joblib
 from data_processing import Preprocessor
 from sklearn.pipeline import Pipeline
+import json
 
 
 param_grid = {
@@ -38,7 +39,8 @@ def create_model(X_train, y_train, X_test, y_test):
     ])
     cv = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=5, scoring='roc_auc', random_state=42, n_jobs=-1)
     cv.fit(X_train, y_train)
-    return cv.best_estimator_
+    report = classification_report(y_test, cv.predict(X_test), output_dict=True)
+    return cv.best_estimator_, cv.best_params_, report, cv.best_score_
 
 
 def baseline_model(X_train, y_train, X_test, y_test):
@@ -57,13 +59,37 @@ def save_model(model, file_path):
     joblib.dump(model, file_path)
 
 
+def save_info(params, report, score):
+    """Saves the model to a file."""
+    if not os.path.exists(os.path.dirname('models\\best_params.json')):
+        os.makedirs(os.path.dirname('models\\best_params.json'))
+    if not os.path.exists(os.path.dirname('models\\metrics.json')):
+        os.makedirs(os.path.dirname('models\\metrics.json'))
+
+    with open('models\\best_params.json', 'w') as f:
+        json.dump(params, f, indent=4)
+
+    metrics = {
+        "accuracy": report["accuracy"],
+        "roc_auc": score,
+        "f1_macro": report["macro avg"]["f1-score"],
+        "precision_yes": report["Yes"]["precision"],
+        "recall_yes": report["Yes"]["recall"],
+        "f1_yes": report["Yes"]["f1-score"]
+    }
+
+    with open('models\\metrics.json', 'w') as f:
+        json.dump(metrics, f, indent=4)
+
+
 def main():
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
     # baseline_model(X_train, y_train, X_test, y_test)
-    best_model = create_model(X_train, y_train, X_test, y_test)
+    best_model, best_params, report, best_score = create_model(X_train, y_train, X_test, y_test)
     save_model(best_model, 'models\\model.pkl')
+    save_info(best_params, report, best_score)
 
 
 if __name__ == "__main__":
