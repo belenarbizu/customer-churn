@@ -39,8 +39,10 @@ def create_model(X_train, y_train, X_test, y_test):
     ])
     cv = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=5, scoring='roc_auc', random_state=42, n_jobs=-1)
     cv.fit(X_train, y_train)
-    report = classification_report(y_test, cv.predict(X_test), output_dict=True)
-    return cv.best_estimator_, cv.best_params_, report, cv.best_score_
+    y_pred = cv.predict(X_test)
+    y_proba = cv.predict_proba(X_test)[:, 1]
+    report = classification_report(y_test, y_pred, output_dict=True)
+    return cv.best_estimator_, cv.best_params_, report, cv.best_score_, y_pred, y_proba
 
 
 def baseline_model(X_train, y_train, X_test, y_test):
@@ -82,12 +84,28 @@ def save_info(params, report, score):
         json.dump(metrics, f, indent=4)
 
 
+def save_predictions(y_test, y_pred, y_proba):
+    y_test = y_test.map({'No': 0, 'Yes': 1}).reset_index(drop=True)
+    y_pred = pd.Series(y_pred).map({'No': 0, 'Yes': 1}).reset_index(drop=True)
+
+    results = pd.DataFrame({
+        'y_true': y_test,
+        'y_pred': y_pred,
+        'y_proba': y_proba
+    })
+
+    if not os.path.exists('models'):
+        os.makedirs('models')
+    results.to_csv('models\\predictions.csv', index=False)
+
+
 def main():
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
     # baseline_model(X_train, y_train, X_test, y_test)
-    best_model, best_params, report, best_score = create_model(X_train, y_train, X_test, y_test)
+    best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
+    save_predictions(y_test, y_pred, y_proba)
     save_model(best_model, 'models\\model.pkl')
     save_info(best_params, report, best_score)
 
