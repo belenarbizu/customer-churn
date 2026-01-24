@@ -4,3 +4,5 @@ env/
 *.pkl
 models/
 images/
+mlruns/
+mlflow.db

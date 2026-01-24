@@ -4,11 +4,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV
 import joblib
 from data_processing import Preprocessor
 from sklearn.pipeline import Pipeline
 import json
+import mlflow
+import mlflow.sklearn
 
 
 param_grid = {
@@ -46,12 +48,16 @@ def create_model(X_train, y_train, X_test, y_test):
 
 
 def baseline_model(X_train, y_train, X_test, y_test):
-    model = LogisticRegression(max_iter=5000)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)[:, 1]
-    print(classification_report(y_test, y_pred))
-    print("AUC:", roc_auc_score(y_test, y_proba))
+    pipeline = Pipeline(steps=[
+        ('preprocessor', Preprocessor()),
+        ('classifier', LogisticRegression(max_iter=5000))
+    ])
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    report = classification_report(y_test, y_pred, output_dict=True)
+    score = roc_auc_score(y_test, y_proba)
+    return pipeline, {'model': 'LogisticRegression', 'max_iter': 5000}, report, score
 
 
 def save_model(model, file_path):
@@ -99,15 +105,61 @@ def save_predictions(y_test, y_pred, y_proba):
     results.to_csv('models\\predictions.csv', index=False)
 
 
+def mlflow_model_logging(model, report, score, params):
+    mlflow.set_experiment("Telco Customer Churn Prediction")
+    with mlflow.start_run(run_name="RandomForestClassifier"):
+        mlflow.log_params({
+            'model': 'RandomForest',
+            'n_estimators': params['classifier__n_estimators'],
+            'max_depth': params['classifier__max_depth'],
+            'min_samples_split': params['classifier__min_samples_split']
+        })
+
+        mlflow.log_metrics({
+            'accuracy': report['accuracy'],
+            'roc_auc': score,
+            'f1_macro': report['macro avg']['f1-score'],
+            'precision_yes': report['Yes']['precision'],
+            'recall_yes': report['Yes']['recall'],
+            'f1_yes': report['Yes']['f1-score']
+        })
+
+        mlflow.sklearn.log_model(model, "model")
+        mlflow.log_artifact("models\\metrics.json")
+        mlflow.log_artifact("images\\roc_curve.png")
+        mlflow.log_artifact("images\\confusion_matrix.png")
+        mlflow.log_artifact("images\\feature_importances.png")
+
+
+def mlflow_baseline(model, report, score, params):
+    mlflow.set_experiment("Telco Customer Churn Prediction")
+    with mlflow.start_run(run_name="LogisticRegression_Baseline"):
+        mlflow.log_params(params)
+
+        mlflow.log_metrics({
+            'accuracy': report['accuracy'],
+            'roc_auc': score,
+            'f1_macro': report['macro avg']['f1-score'],
+            'precision_yes': report['Yes']['precision'],
+            'recall_yes': report['Yes']['recall'],
+            'f1_yes': report['Yes']['f1-score']
+        })
+
+        mlflow.sklearn.log_model(model, "baseline_model")
+        mlflow.log_artifact("models\\metrics.json")
+
+
 def main():
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
-    # baseline_model(X_train, y_train, X_test, y_test)
+    # base_model, base_params, base_report, base_score = baseline_model(X_train, y_train, X_test, y_test)
     best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
     save_predictions(y_test, y_pred, y_proba)
     save_model(best_model, 'models\\model.pkl')
     save_info(best_params, report, best_score)
+    mlflow_model_logging(best_model, report, best_score, best_params)
+    # mlflow_baseline(base_model, base_report, base_score, base_params)
 
 
 if __name__ == "__main__":
