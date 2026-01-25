@@ -14,3 +14,5 @@ recall-yes: De los que realmente son churn, ¿cuántos detecta el modelo?
 f1-yes: Media entre precisión y recall para churn. Dice si el modelo está equilibrado para la clase importante.
 
 Since churn is the minority class, I focused on recall and F1-score for the positive class, while using ROC-AUC to evaluate overall separability.
+
+I compared bagging-based ensembles (Random Forest) with boosting-based models (LightGBM), showing how boosting improves recall and ROC-AUC.

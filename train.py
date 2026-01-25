@@ -11,12 +11,21 @@ from sklearn.pipeline import Pipeline
 import json
 import mlflow
 import mlflow.sklearn
+from lightgbm import LGBMClassifier
+import argparse
 
 
 param_grid = {
     'classifier__n_estimators': [200, 300, 400, 500],
     'classifier__max_depth': [None, 10, 20],
     'classifier__min_samples_split': [2, 5, 10]
+}
+
+
+lightgbm_param_grid = {
+    'classifier__num_leaves': [31, 50, 100],
+    'classifier__learning_rate': [0.01, 0.05, 0.1],
+    'classifier__n_estimators': [200, 300, 400]
 }
 
 
@@ -32,6 +41,20 @@ def split_data(df, test_size=0.2, random_state=42):
     y = df['Churn']
     X_train, X_test, y_train, y_test= train_test_split(X, y, test_size=test_size, stratify=y, random_state=random_state)
     return X_train, X_test, y_train, y_test
+
+
+def lightgbm_model(X_train, y_train, X_test, y_test):
+    pipeline = Pipeline(steps=[
+        ('preprocessor', Preprocessor()),
+        ('classifier', LGBMClassifier(random_state=42, class_weight='balanced'))
+    ])
+    cv = RandomizedSearchCV(pipeline, lightgbm_param_grid, n_iter=10, cv=5, scoring='roc_auc', random_state=42, n_jobs=-1)
+    cv.fit(X_train, y_train)
+    y_pred = cv.predict(X_test)
+    y_proba = cv.predict_proba(X_test)[:, 1]
+    report = classification_report(y_test, y_pred, output_dict=True)
+    score = roc_auc_score(y_test, y_proba)
+    return cv.best_estimator_, {'model': 'LGBMClassifier'}, report, score, y_pred, y_proba
 
 
 def create_model(X_train, y_train, X_test, y_test):
@@ -57,7 +80,7 @@ def baseline_model(X_train, y_train, X_test, y_test):
     y_proba = pipeline.predict_proba(X_test)[:, 1]
     report = classification_report(y_test, y_pred, output_dict=True)
     score = roc_auc_score(y_test, y_proba)
-    return pipeline, {'model': 'LogisticRegression', 'max_iter': 5000}, report, score
+    return pipeline, {'model': 'LogisticRegression', 'max_iter': 5000}, report, score, y_pred, y_proba
 
 
 def save_model(model, file_path):
@@ -67,14 +90,14 @@ def save_model(model, file_path):
     joblib.dump(model, file_path)
 
 
-def save_info(params, report, score):
+def save_info(params, report, score, metrics_path, params_path):
     """Saves the model to a file."""
-    if not os.path.exists(os.path.dirname('models\\best_params.json')):
-        os.makedirs(os.path.dirname('models\\best_params.json'))
-    if not os.path.exists(os.path.dirname('models\\metrics.json')):
-        os.makedirs(os.path.dirname('models\\metrics.json'))
+    if not os.path.exists(os.path.dirname(params_path)):
+        os.makedirs(os.path.dirname(params_path))
+    if not os.path.exists(os.path.dirname(metrics_path)):
+        os.makedirs(os.path.dirname(metrics_path))
 
-    with open('models\\best_params.json', 'w') as f:
+    with open(params_path, 'w') as f:
         json.dump(params, f, indent=4)
 
     metrics = {
@@ -86,11 +109,11 @@ def save_info(params, report, score):
         "f1_yes": report["Yes"]["f1-score"]
     }
 
-    with open('models\\metrics.json', 'w') as f:
+    with open(metrics_path, 'w') as f:
         json.dump(metrics, f, indent=4)
 
 
-def save_predictions(y_test, y_pred, y_proba):
+def save_predictions(y_test, y_pred, y_proba, file_path):
     y_test = y_test.map({'No': 0, 'Yes': 1}).reset_index(drop=True)
     y_pred = pd.Series(y_pred).map({'No': 0, 'Yes': 1}).reset_index(drop=True)
 
@@ -102,7 +125,7 @@ def save_predictions(y_test, y_pred, y_proba):
 
     if not os.path.exists('models'):
         os.makedirs('models')
-    results.to_csv('models\\predictions.csv', index=False)
+    results.to_csv(file_path, index=False)
 
 
 def mlflow_model_logging(model, report, score, params):
@@ -135,9 +158,10 @@ def mlflow_model_logging(model, report, score, params):
             print(f"Error logging artifact: {e}")
 
 
-def mlflow_baseline(model, report, score, params):
+def mlflow_baseline(model, report, score, params, model_name):
     mlflow.set_experiment("Telco Customer Churn Prediction")
-    with mlflow.start_run(run_name="LogisticRegression_Baseline"):
+    name = model_name + "_model"
+    with mlflow.start_run(run_name=name):
         mlflow.log_params(params)
 
         mlflow.log_metrics({
@@ -149,24 +173,42 @@ def mlflow_baseline(model, report, score, params):
             'f1_yes': report['Yes']['f1-score']
         })
 
-        mlflow.sklearn.log_model(model, "baseline_model")
+        mlflow.sklearn.log_model(model, model_name)
         try:
-            mlflow.log_artifact("models\\metrics.json")
+            mlflow.log_artifact(f"models\\metrics_{model_name}.json")
         except Exception as e:
             print(f"Error logging artifact: {e}")
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', '--baseline', action='store_true', help='Run baseline model only')
+    parser.add_argument('-m', '--model', action='store_true', help='Run advanced model only')
+    parser.add_argument('-l', '--lightgbm', action='store_true', help='Run LightGBM model only')
+    args = parser.parse_args()
+
     file_path = 'data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
-    # base_model, base_params, base_report, base_score = baseline_model(X_train, y_train, X_test, y_test)
-    best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
-    save_predictions(y_test, y_pred, y_proba)
-    save_model(best_model, 'models\\model.pkl')
-    save_info(best_params, report, best_score)
-    mlflow_model_logging(best_model, report, best_score, best_params)
-    # mlflow_baseline(base_model, base_report, base_score, base_params)
+
+    if args.baseline:
+        base_model, base_params, base_report, base_score, y_pred, y_proba = baseline_model(X_train, y_train, X_test, y_test)
+        mlflow_baseline(base_model, base_report, base_score, base_params, 'baseline')
+        save_predictions(y_test, y_pred, y_proba, 'models\\predictions_baseline.csv')
+        save_model(base_model, 'models\\baseline_model.pkl')
+        save_info(base_params, base_report, base_score, 'models\\metrics_baseline.json', 'models\\params_baseline.json')
+    if args.model:
+        best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
+        mlflow_model_logging(best_model, report, best_score, best_params)
+        save_predictions(y_test, y_pred, y_proba, 'models\\predictions.csv')
+        save_model(best_model, 'models\\model.pkl')
+        save_info(best_params, report, best_score, 'models\\metrics.json', 'models\\params.json')
+    if args.lightgbm:
+        lgbm_model, lgbm_params, lgbm_report, lgbm_score, y_pred, y_proba = lightgbm_model(X_train, y_train, X_test, y_test)
+        mlflow_baseline(lgbm_model, lgbm_report, lgbm_score, lgbm_params, 'lightgbm')
+        save_predictions(y_test, y_pred, y_proba, 'models\\predictions_lightgbm.csv')
+        save_model(lgbm_model, 'models\\lightgbm_model.pkl')
+        save_info(lgbm_params, lgbm_report, lgbm_score, 'models\\metrics_lightgbm.json', 'models\\params_lightgbm.json')
 
 
 if __name__ == "__main__":
