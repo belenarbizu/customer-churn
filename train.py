@@ -125,10 +125,14 @@ def mlflow_model_logging(model, report, score, params):
         })
 
         mlflow.sklearn.log_model(model, "model")
-        mlflow.log_artifact("models\\metrics.json")
-        mlflow.log_artifact("images\\roc_curve.png")
-        mlflow.log_artifact("images\\confusion_matrix.png")
-        mlflow.log_artifact("images\\feature_importances.png")
+        try:
+            mlflow.log_artifact("models\\metrics.json")
+            mlflow.log_artifact("images\\roc_curve.png")
+            mlflow.log_artifact("images\\confusion_matrix.png")
+            mlflow.log_artifact("images\\feature_importances.png")
+            mlflow.log_artifact("images\\decision_tree.png")
+        except Exception as e:
+            print(f"Error logging artifact: {e}")
 
 
 def mlflow_baseline(model, report, score, params):
@@ -146,7 +150,10 @@ def mlflow_baseline(model, report, score, params):
         })
 
         mlflow.sklearn.log_model(model, "baseline_model")
-        mlflow.log_artifact("models\\metrics.json")
+        try:
+            mlflow.log_artifact("models\\metrics.json")
+        except Exception as e:
+            print(f"Error logging artifact: {e}")
 
 
 def main():

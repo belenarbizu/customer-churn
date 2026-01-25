@@ -4,6 +4,8 @@ from sklearn.metrics import roc_curve, auc, confusion_matrix, ConfusionMatrixDis
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from sklearn import tree
+import graphviz
 
 
 def open_model(file_path):
@@ -64,6 +66,13 @@ def feature_importances(model):
     plt.close()
 
 
+def tree_visualization(model):
+    tree_data = model.named_steps['classifier'].estimators_[0]
+    data = tree.export_graphviz(tree_data, out_file=None, feature_names=model.named_steps['classifier'].feature_names_in_, filled=True, proportion=True, max_depth=3)
+    graph = graphviz.Source(data)
+    graph.render('images/decision_tree', format='png')
+
+
 def main():
     model = open_model('models\\model.pkl')
     metrics, params = open_info('models\\metrics.json', 'models\\best_params.json')
@@ -71,6 +80,7 @@ def main():
     roc_visualization(pred)
     confusion_matrix_visualization(pred)
     feature_importances(model)
+    tree_visualization(model)
 
 
 if __name__ == "__main__":
