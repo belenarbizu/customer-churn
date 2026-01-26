@@ -40,14 +40,14 @@ def roc_visualization(pred):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend()
-    plt.savefig('images\\roc_curve.png')
+    plt.savefig('..\\images\\roc_curve.png')
     plt.close()
 
 
 def confusion_matrix_visualization(pred):
     cm = confusion_matrix(pred['y_true'], pred['y_pred'])
     ConfusionMatrixDisplay(cm).plot()
-    plt.savefig('images\\confusion_matrix.png')
+    plt.savefig('..\\images\\confusion_matrix.png')
     plt.close()
 
 
@@ -62,7 +62,7 @@ def feature_importances(model):
     plt.xlabel('Features')
     plt.gca().invert_yaxis()
     plt.tight_layout()
-    plt.savefig('images\\feature_importances.png')
+    plt.savefig('..\\images\\feature_importances.png')
     plt.close()
 
 
@@ -70,13 +70,12 @@ def tree_visualization(model):
     tree_data = model.named_steps['classifier'].estimators_[0]
     data = tree.export_graphviz(tree_data, out_file=None, feature_names=model.named_steps['classifier'].feature_names_in_, filled=True, proportion=True, max_depth=3)
     graph = graphviz.Source(data)
-    graph.render('images/decision_tree', format='png')
+    graph.render('..\\images\\decision_tree', format='png')
 
 
 def main():
-    model = open_model('models\\model.pkl')
-    metrics, params = open_info('models\\metrics.json', 'models\\best_params.json')
-    pred = open_predictions('models\\predictions.csv')
+    model = open_model('..\\models\\model.pkl')
+    pred = open_predictions('..\\models\\predictions.csv')
     roc_visualization(pred)
     confusion_matrix_visualization(pred)
     feature_importances(model)

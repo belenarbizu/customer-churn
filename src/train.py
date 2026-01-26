@@ -149,11 +149,11 @@ def mlflow_model_logging(model, report, score, params):
 
         mlflow.sklearn.log_model(model, "model")
         try:
-            mlflow.log_artifact("models\\metrics.json")
-            mlflow.log_artifact("images\\roc_curve.png")
-            mlflow.log_artifact("images\\confusion_matrix.png")
-            mlflow.log_artifact("images\\feature_importances.png")
-            mlflow.log_artifact("images\\decision_tree.png")
+            mlflow.log_artifact("..\\models\\metrics.json")
+            mlflow.log_artifact("..\\images\\roc_curve.png")
+            mlflow.log_artifact("..\\images\\confusion_matrix.png")
+            mlflow.log_artifact("..\\images\\feature_importances.png")
+            mlflow.log_artifact("..\\images\\decision_tree.png")
         except Exception as e:
             print(f"Error logging artifact: {e}")
 
@@ -175,7 +175,7 @@ def mlflow_baseline(model, report, score, params, model_name):
 
         mlflow.sklearn.log_model(model, model_name)
         try:
-            mlflow.log_artifact(f"models\\metrics_{model_name}.json")
+            mlflow.log_artifact(f"..\\models\\metrics_{model_name}.json")
         except Exception as e:
             print(f"Error logging artifact: {e}")
 
@@ -187,28 +187,28 @@ def main():
     parser.add_argument('-l', '--lightgbm', action='store_true', help='Run LightGBM model only')
     args = parser.parse_args()
 
-    file_path = 'data\\Telco-Customer-Churn.csv'
+    file_path = '..\\data\\Telco-Customer-Churn.csv'
     df = open_file(file_path)
     X_train, X_test, y_train, y_test = split_data(df)
 
     if args.baseline:
         base_model, base_params, base_report, base_score, y_pred, y_proba = baseline_model(X_train, y_train, X_test, y_test)
         mlflow_baseline(base_model, base_report, base_score, base_params, 'baseline')
-        save_predictions(y_test, y_pred, y_proba, 'models\\predictions_baseline.csv')
-        save_model(base_model, 'models\\baseline_model.pkl')
-        save_info(base_params, base_report, base_score, 'models\\metrics_baseline.json', 'models\\params_baseline.json')
+        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions_baseline.csv')
+        save_model(base_model, '..\\models\\baseline_model.pkl')
+        save_info(base_params, base_report, base_score, '..\\models\\metrics_baseline.json', '..\\models\\params_baseline.json')
     if args.model:
         best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
         mlflow_model_logging(best_model, report, best_score, best_params)
-        save_predictions(y_test, y_pred, y_proba, 'models\\predictions.csv')
-        save_model(best_model, 'models\\model.pkl')
-        save_info(best_params, report, best_score, 'models\\metrics.json', 'models\\params.json')
+        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions.csv')
+        save_model(best_model, '..\\models\\model.pkl')
+        save_info(best_params, report, best_score, '..\\models\\metrics.json', '..\\models\\params.json')
     if args.lightgbm:
         lgbm_model, lgbm_params, lgbm_report, lgbm_score, y_pred, y_proba = lightgbm_model(X_train, y_train, X_test, y_test)
         mlflow_baseline(lgbm_model, lgbm_report, lgbm_score, lgbm_params, 'lightgbm')
-        save_predictions(y_test, y_pred, y_proba, 'models\\predictions_lightgbm.csv')
-        save_model(lgbm_model, 'models\\lightgbm_model.pkl')
-        save_info(lgbm_params, lgbm_report, lgbm_score, 'models\\metrics_lightgbm.json', 'models\\params_lightgbm.json')
+        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions_lightgbm.csv')
+        save_model(lgbm_model, '..\\models\\lightgbm_model.pkl')
+        save_info(lgbm_params, lgbm_report, lgbm_score, '..\\models\\metrics_lightgbm.json', '..\\models\\params_lightgbm.json')
 
 
 if __name__ == "__main__":
