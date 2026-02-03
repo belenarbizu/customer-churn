@@ -95,3 +95,6 @@ Random Forest offers the best balance for this dataset, especially in recall and
 LightGBM demonstrates the strengths of boosting and provides competitive results when properly tuned.
 
 Metric selection is critical when dealing with imbalanced data.
+
+![Confusion Matrix](https://github.com/belenarbizu/customer-churn/blob/main/images/confusion_matrix.png?raw=true)
+![ROC Curve](https://github.com/belenarbizu/customer-churn/blob/main/images/roc_curve.png?raw=true)
