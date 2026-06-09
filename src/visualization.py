@@ -31,8 +31,8 @@ def roc_visualization(pred):
     fpr, tpr, _ = roc_curve(pred['y_true'], pred['y_proba'])
     roc_auc = auc(fpr, tpr)
 
-    if not os.path.exists('images'):
-        os.makedirs('images')
+    # Asegurar que el directorio de imágenes exista en la ruta correcta
+    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
 
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
@@ -46,6 +46,7 @@ def roc_visualization(pred):
 
 def confusion_matrix_visualization(pred):
     cm = confusion_matrix(pred['y_true'], pred['y_pred'])
+    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
     ConfusionMatrixDisplay(cm).plot()
     plt.savefig('..\\images\\confusion_matrix.png')
     plt.close()
@@ -55,6 +56,7 @@ def feature_importances(model):
     feature_importances = pd.Series(model.named_steps['classifier'].feature_importances_, index=model.named_steps['classifier'].feature_names_in_)
     feature_importances.sort_values(ascending=False, inplace=True)
     
+    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
     plt.figure(figsize=(10, 6))
     feature_importances[:10].plot(kind='barh')
     plt.title('Top 10 Feature Importances')
@@ -70,6 +72,7 @@ def tree_visualization(model):
     tree_data = model.named_steps['classifier'].estimators_[0]
     data = tree.export_graphviz(tree_data, out_file=None, feature_names=model.named_steps['classifier'].feature_names_in_, filled=True, proportion=True, max_depth=3)
     graph = graphviz.Source(data)
+    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
     graph.render('..\\images\\decision_tree', format='png')
 
 

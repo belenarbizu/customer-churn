@@ -86,6 +86,8 @@ All experiments were tracked using MLflow, including:
 
 This allows easy comparison between runs and ensures reproducibility.
 
+Use 'mlflow ui --port 5000' 
+
 ## ✅ Conclusion
 
 Logistic Regression serves as a useful baseline but is insufficient for churn detection.

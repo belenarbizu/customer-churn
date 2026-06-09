@@ -4,3 +4,4 @@ mlflow
 matplotlib
 graphviz
 lightgbm
+kagglehub
