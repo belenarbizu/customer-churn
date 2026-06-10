@@ -86,7 +86,76 @@ All experiments were tracked using MLflow, including:
 
 This allows easy comparison between runs and ensures reproducibility.
 
-Use 'mlflow ui --port 5000' 
+## 🚀 How to Use
+
+Follow these steps to set up the project and run the code:
+
+### 1. Clone the Repository
+
+First, clone the repository to your local machine using Git:
+
+```bash
+git clone https://github.com/belenarbizu/customer-churn.git
+cd customer-churn
+```
+
+### 2. Set Up the Environment
+
+You can set up the Python environment using either the `setup.sh` script (for Unix-like systems) or the `setup.py` script.
+
+**Using `setup.sh` (Linux/macOS):**
+
+```bash
+./setup.sh
+source venv/bin/activate
+```
+
+**Using `setup.py` (Cross-platform, recommended for Windows):**
+
+```bash
+python setup.py
+.\venv\Scripts\activate # For Windows PowerShell
+source venv/bin/activate # For Git Bash/WSL
+```
+
+### 3. Run the Training and Visualization Scripts
+
+Once your environment is activated, you can run the `train.py` script to train models and `visualization.py` to generate plots.
+
+**Train a specific model (e.g., Random Forest):**
+
+```bash
+python src/train.py -m
+```
+
+**Train the LightGBM model:**
+
+```bash
+python src/train.py -l
+```
+
+**Train the baseline (Logistic Regression) model:**
+
+```bash
+python src/train.py -b
+```
+
+**Generate visualizations (after training a model):**
+
+```bash
+python src/visualization.py
+```
+
+### 4. View MLflow Tracking
+
+To view the MLflow tracking dashboard with all your experiment runs, execute the following command in your terminal and open your web browser to the specified address:
+
+```bash
+mlflow ui --port 5000
+```
+
+Then, navigate to `http://localhost:5000` in your browser.
+
 
 ## ✅ Conclusion
 
