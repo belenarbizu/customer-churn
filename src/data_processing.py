@@ -17,6 +17,13 @@ categorical_cols = [
     'PaymentMethod'
 ]
 
+binary_cols = [
+    'Partner',
+    'Dependents',
+    'PhoneService',
+    'PaperlessBilling'
+]
+
 
 class Preprocessor(BaseEstimator, TransformerMixin):
     def __init__(self):
@@ -62,17 +69,24 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         # Convert 'TotalCharges' to numeric, coercing errors to NaN, then fill with 0
         df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors='coerce').fillna(0)
         
-        # Map Yes/No to 1/0
-        for col in df.columns:
-            if df[col].dtype == 'object' and set(df[col].dropna().unique()).issubset({'Yes', 'No'}):
-                df[col] = df[col].map({'Yes': 1, 'No': 0})
+        # Map Yes/No to 1/0 only for specific binary columns
+        for col in binary_cols:
+            if col in df.columns:
+                df[col] = df[col].map({'Yes': 1, 'No': 0}).fillna(0).astype(float)
 
         # Map PaymentMethod
-        if "PaymentMethod" in df.columns:
+        if "PaymentMethod" in df.columns and df["PaymentMethod"].dtype == 'object':
             df["PaymentMethod"] = df["PaymentMethod"].map({
                 'Electronic check': 'Electronic Check',
                 'Mailed check': 'Mailed Check',
                 'Bank transfer (automatic)': 'Bank Transfer',
                 'Credit card (automatic)': 'Credit Card'
             })
+
+        for col in df.columns:
+            if col in categorical_cols:
+                df[col] = df[col].astype(str)
+            else:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
         return df
