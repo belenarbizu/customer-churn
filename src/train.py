@@ -14,7 +14,13 @@ import mlflow.sklearn
 from lightgbm import LGBMClassifier
 import argparse
 import kagglehub
+from pathlib import Path
 
+# Definición de rutas base
+BASE_DIR = Path("..")
+MODELS_DIR = BASE_DIR / "models"
+LOGS_DIR = BASE_DIR / "logs"
+DATA_DIR = BASE_DIR / "data"
 
 param_grid = {
     'classifier__n_estimators': [200, 300, 400, 500],
@@ -86,19 +92,15 @@ def baseline_model(X_train, y_train, X_test, y_test):
 
 def save_model(model, file_path):
     """Saves the model to a file."""
-    if not os.path.exists(os.path.dirname(file_path)):
-        os.makedirs(os.path.dirname(file_path))
-    joblib.dump(model, file_path)
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, path)
 
 
 def save_info(params, report, score, metrics_path, params_path):
     """Saves the model to a file."""
-    if not os.path.exists(os.path.dirname(params_path)):
-        os.makedirs(os.path.dirname(params_path))
-    if not os.path.exists(os.path.dirname(metrics_path)):
-        os.makedirs(os.path.dirname(metrics_path))
-
-    with open(params_path, 'w') as f:
+    Path(params_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(Path(params_path), 'w') as f:
         json.dump(params, f, indent=4)
 
     metrics = {
@@ -110,7 +112,7 @@ def save_info(params, report, score, metrics_path, params_path):
         "f1_yes": report["Yes"]["f1-score"]
     }
 
-    with open(metrics_path, 'w') as f:
+    with open(Path(metrics_path), 'w') as f:
         json.dump(metrics, f, indent=4)
 
 
@@ -118,15 +120,15 @@ def save_predictions(y_test, y_pred, y_proba, file_path):
     y_test = y_test.map({'No': 0, 'Yes': 1}).reset_index(drop=True)
     y_pred = pd.Series(y_pred).map({'No': 0, 'Yes': 1}).reset_index(drop=True)
 
-    # Asegurar que el directorio de destino exista
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     results = pd.DataFrame({
         'y_true': y_test,
         'y_pred': y_pred,
         'y_proba': y_proba
     })
-    results.to_csv(file_path, index=False)
+    results.to_csv(path, index=False)
 
 
 def mlflow_model_logging(model, report, score, params):
@@ -150,11 +152,12 @@ def mlflow_model_logging(model, report, score, params):
 
         mlflow.sklearn.log_model(model, "model")
         try:
-            mlflow.log_artifact("..\\models\\metrics.json")
-            mlflow.log_artifact("..\\images\\roc_curve.png")
-            mlflow.log_artifact("..\\images\\confusion_matrix.png")
-            mlflow.log_artifact("..\\images\\feature_importances.png")
-            mlflow.log_artifact("..\\images\\decision_tree.png")
+            images_dir = BASE_DIR / "images"
+            mlflow.log_artifact(MODELS_DIR / "metrics.json")
+            mlflow.log_artifact(MODELS_DIR / "params.json")
+            mlflow.log_artifact(images_dir / "roc_curve.png")
+            mlflow.log_artifact(images_dir / "feature_importances.png")
+            mlflow.log_artifact(images_dir / "decision_tree.png")
         except Exception as e:
             print(f"Error logging artifact: {e}")
 
@@ -176,7 +179,7 @@ def mlflow_baseline(model, report, score, params, model_name):
 
         mlflow.sklearn.log_model(model, model_name)
         try:
-            mlflow.log_artifact(f"..\\models\\metrics_{model_name}.json")
+            mlflow.log_artifact(MODELS_DIR / f"metrics_{model_name}.json")
         except Exception as e:
             print(f"Error logging artifact: {e}")
 
@@ -188,36 +191,35 @@ def main():
     parser.add_argument('-l', '--lightgbm', action='store_true', help='Run LightGBM model only')
     args = parser.parse_args()
 
-    data_dir = os.path.join('..', 'data')
-    os.makedirs(data_dir, exist_ok=True)
+    DATA_DIR.mkdir(exist_ok=True)
 
-    download_path = kagglehub.dataset_download("blastchar/telco-customer-churn", output_dir=data_dir)
+    download_path_str = kagglehub.dataset_download("blastchar/telco-customer-churn", output_dir=str(DATA_DIR))
+    download_path = Path(download_path_str)
 
-    csv_files = [f for f in os.listdir(download_path) if f.endswith('.csv')]
+    csv_files = list(download_path.glob("*.csv"))
     if not csv_files:
         raise FileNotFoundError(f"No se encontró ningún archivo CSV en {download_path}")
     
-    file_to_open = os.path.join(download_path, csv_files[0])
-    df = open_file(file_to_open)
+    df = open_file(csv_files[0])
     X_train, X_test, y_train, y_test = split_data(df)
 
     if args.baseline:
         base_model, base_params, base_report, base_score, y_pred, y_proba = baseline_model(X_train, y_train, X_test, y_test)
-        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions_baseline.csv')
-        save_model(base_model, '..\\models\\baseline_model.pkl')
-        save_info(base_params, base_report, base_score, '..\\models\\metrics_baseline.json', '..\\models\\params_baseline.json')
+        save_predictions(y_test, y_pred, y_proba, LOGS_DIR / "predictions_baseline.csv")
+        save_model(base_model, MODELS_DIR / "baseline_model.pkl")
+        save_info(base_params, base_report, base_score, MODELS_DIR / "metrics_baseline.json", MODELS_DIR / "params_baseline.json")
         mlflow_baseline(base_model, base_report, base_score, base_params, 'baseline')
     if args.model:
         best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
-        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions.csv')
-        save_model(best_model, '..\\models\\model.pkl')
-        save_info(best_params, report, best_score, '..\\models\\metrics.json', '..\\models\\params.json')
+        save_predictions(y_test, y_pred, y_proba, LOGS_DIR / "predictions.csv")
+        save_model(best_model, MODELS_DIR / "model.pkl")
+        save_info(best_params, report, best_score, MODELS_DIR / "metrics.json", MODELS_DIR / "params.json")
         mlflow_model_logging(best_model, report, best_score, best_params)
     if args.lightgbm:
         lgbm_model, lgbm_params, lgbm_report, lgbm_score, y_pred, y_proba = lightgbm_model(X_train, y_train, X_test, y_test)
-        save_predictions(y_test, y_pred, y_proba, '..\\models\\predictions_lightgbm.csv')
-        save_model(lgbm_model, '..\\models\\lightgbm_model.pkl')
-        save_info(lgbm_params, lgbm_report, lgbm_score, '..\\models\\metrics_lightgbm.json', '..\\models\\params_lightgbm.json')
+        save_predictions(y_test, y_pred, y_proba, LOGS_DIR / "predictions_lightgbm.csv")
+        save_model(lgbm_model, MODELS_DIR / "lightgbm_model.pkl")
+        save_info(lgbm_params, lgbm_report, lgbm_score, MODELS_DIR / "metrics_lightgbm.json", MODELS_DIR / "params_lightgbm.json")
         mlflow_baseline(lgbm_model, lgbm_report, lgbm_score, lgbm_params, 'lightgbm')
 
 

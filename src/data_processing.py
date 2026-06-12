@@ -32,6 +32,19 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         X_clean = self._clean_data(X)
+        
+        # Identificar columnas que no serán codificadas con One-Hot Encoding
+        non_encoded_cols = [col for col in X_clean.columns if col not in self.encoded_cols_]
+
+        # Asegurarse de que estas columnas no codificadas sean numéricas
+        for col in non_encoded_cols:
+            if X_clean[col].dtype == 'object':
+                # Intentar convertir a numérico, forzando errores a NaN, luego rellenar NaNs con 0
+                X_clean[col] = pd.to_numeric(X_clean[col], errors='coerce').fillna(0)
+            # Si ya es numérico, asegurar que sea float para consistencia
+            elif pd.api.types.is_numeric_dtype(X_clean[col]):
+                X_clean[col] = X_clean[col].astype(float)
+
         if not hasattr(self, 'encoded_cols_') or not self.encoded_cols_:
             return X_clean
 
@@ -41,6 +54,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             columns=encoded_cols,
             index=X_clean.index
         )
+        
         return pd.concat([X_clean.drop(columns=self.encoded_cols_), encoded_data], axis=1)
 
     def _clean_data(self, df):

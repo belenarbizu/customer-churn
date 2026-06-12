@@ -6,7 +6,12 @@ import pandas as pd
 import os
 from sklearn import tree
 import graphviz
+from pathlib import Path
 
+# Definición de rutas base
+IMAGES_DIR = Path("..") / "images"
+MODELS_DIR = Path("..") / "models"
+LOGS_DIR = Path("..") / "logs"
 
 def open_model(file_path):
     model = joblib.load(file_path)
@@ -31,8 +36,8 @@ def roc_visualization(pred):
     fpr, tpr, _ = roc_curve(pred['y_true'], pred['y_proba'])
     roc_auc = auc(fpr, tpr)
 
-    # Asegurar que el directorio de imágenes exista en la ruta correcta
-    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
+    # Asegurar que el directorio de imágenes exista
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
@@ -40,15 +45,15 @@ def roc_visualization(pred):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend()
-    plt.savefig('..\\images\\roc_curve.png')
+    plt.savefig(IMAGES_DIR / "roc_curve.png")
     plt.close()
 
 
 def confusion_matrix_visualization(pred):
     cm = confusion_matrix(pred['y_true'], pred['y_pred'])
-    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
     ConfusionMatrixDisplay(cm).plot()
-    plt.savefig('..\\images\\confusion_matrix.png')
+    plt.savefig(IMAGES_DIR / "confusion_matrix.png")
     plt.close()
 
 
@@ -56,7 +61,7 @@ def feature_importances(model):
     feature_importances = pd.Series(model.named_steps['classifier'].feature_importances_, index=model.named_steps['classifier'].feature_names_in_)
     feature_importances.sort_values(ascending=False, inplace=True)
     
-    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(10, 6))
     feature_importances[:10].plot(kind='barh')
     plt.title('Top 10 Feature Importances')
@@ -64,7 +69,7 @@ def feature_importances(model):
     plt.xlabel('Features')
     plt.gca().invert_yaxis()
     plt.tight_layout()
-    plt.savefig('..\\images\\feature_importances.png')
+    plt.savefig(IMAGES_DIR / "feature_importances.png")
     plt.close()
 
 
@@ -72,13 +77,13 @@ def tree_visualization(model):
     tree_data = model.named_steps['classifier'].estimators_[0]
     data = tree.export_graphviz(tree_data, out_file=None, feature_names=model.named_steps['classifier'].feature_names_in_, filled=True, proportion=True, max_depth=3)
     graph = graphviz.Source(data)
-    os.makedirs(os.path.join('..', 'images'), exist_ok=True)
-    graph.render('..\\images\\decision_tree', format='png')
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    graph.render(IMAGES_DIR / "decision_tree", format='png')
 
 
 def main():
-    model = open_model('..\\models\\model.pkl')
-    pred = open_predictions('..\\models\\predictions.csv')
+    model = open_model(MODELS_DIR / "model.pkl")
+    pred = open_predictions(LOGS_DIR / "predictions.csv")
     roc_visualization(pred)
     confusion_matrix_visualization(pred)
     feature_importances(model)

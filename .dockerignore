@@ -1,0 +1,13 @@
+﻿venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+data/
+logs/
+reports/
+images/
+mlruns/
+src/mlruns/
+outputs/
+*.db

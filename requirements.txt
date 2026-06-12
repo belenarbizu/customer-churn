@@ -5,3 +5,8 @@ matplotlib
 graphviz
 lightgbm
 kagglehub
+fastapi
+uvicorn
+pydantic
+joblib
+evidently

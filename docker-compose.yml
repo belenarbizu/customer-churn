@@ -1,0 +1,34 @@
+services:
+
+  churn-api:
+    build: .
+    container_name: churn-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs         # persiste los logs de predicciones
+      - ./reports:/app/reports   # persiste los reportes de drift
+      - ./models:/app/models     # monta los modelos entrenados
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow-server
+    working_dir: /mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./mlflow.db:/mlflow/mlflow.db
+    command: >
+      bash -c "pip install mlflow --quiet &&
+               mlflow server
+               --backend-store-uri sqlite:///mlflow.db
+               --default-artifact-root /mlflow/mlruns
+               --host 0.0.0.0
+               --port 5000"
+    restart: unless-stopped
