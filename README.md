@@ -75,9 +75,9 @@ Used to compare bagging vs. boosting approaches. Improved ROC-AUC and recall whe
 
 | Model | ROC-AUC | F1 (churn) | Recall (churn) |
 |---|---|---|---|
-| Logistic Regression (baseline) | ~0.84 | ~0.58 | ~0.76 |
-| Random Forest | ~0.83 | ~0.59 | ~0.77 |
-| LightGBM | ~0.85 | ~0.62 | ~0.79 |
+| Logistic Regression (baseline) | ~0.84 | ~0.61 | ~0.56 |
+| Random Forest | ~0.84 | ~0.63 | ~0.77 |
+| LightGBM | ~0.84 | ~0.63 | ~0.79 |
 
 All three models are available via the API. LightGBM is used by default.
 
