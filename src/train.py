@@ -132,6 +132,7 @@ def save_predictions(y_test, y_pred, y_proba, file_path):
 
 
 def mlflow_model_logging(model, report, score, params):
+    mlflow.set_tracking_uri(f"sqlite:///{BASE_DIR / 'mlflow.db'}")
     mlflow.set_experiment("Telco Churn Prediction")
     with mlflow.start_run(run_name="RandomForestClassifier"):
         mlflow.log_params({
@@ -163,6 +164,7 @@ def mlflow_model_logging(model, report, score, params):
 
 
 def mlflow_baseline(model, report, score, params, model_name):
+    mlflow.set_tracking_uri(f"sqlite:///{BASE_DIR / 'mlflow.db'}")
     mlflow.set_experiment("Telco Churn Prediction")
     name = model_name + "_model"
     with mlflow.start_run(run_name=name):
