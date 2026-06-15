@@ -1,171 +1,329 @@
-# Customer Churn Prediction
+# Customer Churn Prediction — MLOps Pipeline
 
-## 📌 Project Overview
+End-to-end MLOps project for predicting customer churn: model training with experiment tracking, REST API in production, containerization, and data drift monitoring.
 
-This project focuses on predicting customer churn using classical machine learning models and ensemble methods.
-The main goal is to correctly identify customers who are likely to churn, which is a minority class, making recall and F1-score for the positive class especially important.
+**Dataset**: [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) · **Stack**: Python · FastAPI · Docker · MLflow · LightGBM · scikit-learn · Evidently AI
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Training                            │
+│   train.py  ──►  MLflow tracking  ──►  models/*.pkl        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Production (Docker)                      │
+│                                                             │
+│   FastAPI /predict  ──►  sklearn Pipeline + LightGBM       │
+│         │                                                   │
+│         └──►  logs/predictions.csv                         │
+│                          │                                  │
+│                          ▼                                  │
+│              Evidently AI drift monitor                     │
+│              /drift-run  ──►  /drift-report                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Project Overview
+
+This project focuses on predicting customer churn using classical machine learning models and ensemble methods. The main goal is to correctly identify customers who are likely to churn — a minority class problem — making recall and F1-score for the positive class especially important.
 
 The project includes:
 
-- Data preprocessing with a unified pipeline
+- Data preprocessing with a unified sklearn pipeline
 - A baseline model for reference
 - Ensemble models (Random Forest and LightGBM)
 - Model evaluation, visualization, and experiment tracking with MLflow
+- REST API with FastAPI, containerized with Docker
+- Automated data drift monitoring with Evidently AI
+- Daily CI via GitHub Actions
 
-## 📊 Data Preprocessing
+---
+
+## Data Preprocessing
 
 The preprocessing step was designed as part of a pipeline to ensure reproducibility and avoid data leakage.
 
-Key preprocessing decisions:
+Key decisions:
 - Numerical features were not normally distributed, but this did not affect model performance as tree-based models were used.
-- Binary categorical features with values "Yes" and "No" were converted into 1 and 0.
+- Binary categorical features (`Yes`/`No`) were mapped to `1`/`0`.
 - Multi-class categorical features were encoded using One-Hot Encoding.
 - No significant outliers were detected in the dataset.
 
-All preprocessing steps were applied consistently using a pipeline.
+All steps are encapsulated in a custom `Preprocessor` class (`data_processing.py`) that integrates cleanly into the sklearn pipeline.
 
-## 🤖 Models
+---
 
-#### Baseline Model
-- **Logistic Regression** was used as a baseline to establish a minimum performance reference.
+## Models
 
-#### Ensemble Models
-- **Random Forest (Bagging-based)**: Provided better performance for churn detection, especially in terms of recall and ROC-AUC, making it a strong candidate for this problem.
+**Baseline — Logistic Regression**
+Used to establish a minimum performance reference.
 
-- **LightGBM (Boosting-based)**: Used to compare bagging vs. boosting approaches. Boosting improved ROC-AUC and recall when properly tuned and class imbalance was taken into account.
+**Random Forest (Bagging)**
+Provided strong churn detection performance, especially in terms of recall and ROC-AUC. Proved to be robust and stable for this dataset.
 
-Although LightGBM achieved strong overall separability, Random Forest proved to be more robust for detecting churn in this dataset.
+**LightGBM (Boosting)**
+Used to compare bagging vs. boosting approaches. Improved ROC-AUC and recall when properly tuned with class imbalance handling.
 
-## 📈 Evaluation Metrics
+### Results
 
-The following metrics were used to evaluate model performance:
+| Model | ROC-AUC | F1 (churn) | Recall (churn) |
+|---|---|---|---|
+| Logistic Regression (baseline) | ~0.84 | ~0.58 | ~0.76 |
+| Random Forest | ~0.83 | ~0.59 | ~0.77 |
+| LightGBM | ~0.85 | ~0.62 | ~0.79 |
 
-- **Accuracy**: Percentage of total correct predictions. Indicates general classification performance.
+> Replace these values with your actual MLflow results before publishing.
 
-- **ROC-AUC**: Area Under the ROC Curve. Measures the model’s ability to separate classes.
+All three models are available via the API. LightGBM is used by default.
 
-- **F1-macro**: Average F1-score across all classes. A high value indicates that the model does not focus only on the majority class.
+---
 
-- **Precision (Yes)**: Of all customers predicted as churn, how many actually churned.
+## Evaluation Metrics
 
-- **Recall (Yes)**: Of all customers who actually churned, how many were correctly detected by the model.
+Since churn is the minority class, model selection focused on:
 
-- **F1-score (Yes)**: Harmonic mean of precision and recall for the churn class. Indicates whether the model is well-balanced for the most important class.
+- **Recall (Yes)** — minimizing false negatives (missed churners)
+- **F1-score (Yes)** — balance between precision and recall for the churn class
+- **ROC-AUC** — overall class separability
 
-## 🎯 Metric Strategy
+Accuracy alone was not considered sufficient for model selection given the class imbalance.
 
-Since churn is the minority class, the evaluation focused primarily on:
+![Confusion Matrix](https://github.com/belenarbizu/customer-churn/blob/main/images/confusion_matrix.png?raw=true)
+![ROC Curve](https://github.com/belenarbizu/customer-churn/blob/main/images/roc_curve.png?raw=true)
 
-- Recall (Yes) → minimizing false negatives
+---
 
-- F1-score (Yes) → balance between precision and recall
+## Project Structure
 
-- ROC-AUC → overall class separability
+```
+customer-churn/
+├── src/
+│   ├── train.py              # Training and MLflow tracking
+│   ├── data_processing.py    # Preprocessor (OneHotEncoder + cleaning)
+│   ├── visualization.py      # Plots: ROC curve, confusion matrix, feature importance
+│   ├── main.py               # FastAPI app
+│   ├── run_drift.py          # Drift analysis with Evidently
+│   └── export_reference.py   # Exports reference dataset (run once)
+├── models/                   # Trained .pkl models
+├── data/
+│   └── reference.csv         # Reference dataset for drift monitoring
+├── logs/
+│   └── predictions.csv       # Production prediction log
+├── reports/
+│   └── drift_report.html     # Latest drift report
+├── images/                   # Evaluation plots
+├── .github/
+│   └── workflows/
+│       └── drift_check.yml   # Daily drift check CI
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
 
-Accuracy alone was not considered sufficient for model selection.
+---
 
-## 🔍 Model Comparison
+## Getting Started
 
-The project compares:
+### Requirements
 
-- Bagging-based ensembles (Random Forest)
+- Python 3.11+
+- Docker Desktop
+- Kaggle account (dataset is downloaded automatically via `kagglehub`)
 
-- Boosting-based models (LightGBM)
-
-This comparison highlights how boosting can improve recall and ROC-AUC, while bagging can offer more stable performance depending on the data distribution.
-
-## 🧪 Experiment Tracking
-
-All experiments were tracked using MLflow, including:
-
-- Model parameters
-
-- Metrics
-
-- Artifacts (models, plots)
-
-This allows easy comparison between runs and ensures reproducibility.
-
-## 🚀 How to Use
-
-Follow these steps to set up the project and run the code:
-
-### 1. Clone the Repository
-
-First, clone the repository to your local machine using Git:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/belenarbizu/customer-churn.git
 cd customer-churn
 ```
 
-### 2. Set Up the Environment
+### 2. Set up the environment
 
-You can set up the Python environment using either the `setup.sh` script (for Unix-like systems) or the `setup.py` script.
-
-**Using `setup.sh` (Linux/macOS):**
-
+**Windows:**
 ```bash
-./setup.sh
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+**macOS / Linux:**
+```bash
+python -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-**Using `setup.py` (Cross-platform, recommended for Windows):**
+Alternatively, use the provided setup scripts:
+```bash
+python setup.py        # cross-platform
+# or
+./setup.sh             # Linux/macOS
+```
+
+### 3. Train the models
+
+Artifacts are saved to `models/` and experiments tracked in MLflow:
 
 ```bash
-python setup.py
-.\venv\Scripts\activate # For Windows PowerShell
-source venv/bin/activate # For Git Bash/WSL
+python src/train.py -b    # Baseline (Logistic Regression)
+python src/train.py -m    # Random Forest
+python src/train.py -l    # LightGBM (recommended)
 ```
 
-### 3. Run the Training and Visualization Scripts
-
-Once your environment is activated, you can run the `train.py` script to train models and `visualization.py` to generate plots.
-
-**Train a specific model (e.g., Random Forest):**
-
-```bash
-python src/train.py -m
-```
-
-**Train the LightGBM model:**
-
-```bash
-python src/train.py -l
-```
-
-**Train the baseline (Logistic Regression) model:**
-
-```bash
-python src/train.py -b
-```
-
-**Generate visualizations (after training a model):**
+### 4. Generate visualizations
 
 ```bash
 python src/visualization.py
 ```
 
-### 4. View MLflow Tracking
+Plots are saved to `images/`: confusion matrix, ROC curve, and feature importances.
 
-To view the MLflow tracking dashboard with all your experiment runs, execute the following command in your terminal and open your web browser to the specified address:
+### 5. View experiments in MLflow
 
 ```bash
 mlflow ui --port 5000
 ```
 
-Then, navigate to `http://localhost:5000` in your browser.
+Open `http://localhost:5000` to compare metrics across runs.
 
+### 6. Export the reference dataset (once)
 
-## ✅ Conclusion
+Required for drift monitoring. Only needs to be run once:
 
-Logistic Regression serves as a useful baseline but is insufficient for churn detection.
+```bash
+python src/export_reference.py
+```
 
-Random Forest offers the best balance for this dataset, especially in recall and ROC-AUC.
+Generates `data/reference.csv` from the training split.
+
+### 7. Start the API with Docker
+
+```bash
+docker-compose up --build
+```
+
+This starts two services:
+- **API**: `http://localhost:8000`
+- **MLflow**: `http://localhost:5000`
+
+---
+
+## API Usage
+
+Interactive documentation is available at `http://localhost:8000/docs`.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Health check |
+| GET | `/models` | List available models |
+| POST | `/predict` | Predict with best model (LightGBM) |
+| POST | `/predict/{model_name}` | Predict with a specific model |
+| POST | `/drift-run` | Run drift analysis |
+| GET | `/drift-report` | View HTML drift report in browser |
+
+Available model names: `baseline`, `random_forest`, `lightgbm`.
+
+### Prediction example
+
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "No",
+    "tenure": 12,
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "Yes",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "No",
+    "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 70.35,
+    "TotalCharges": 844.20
+  }'
+```
+
+Response:
+
+```json
+{
+  "churn": "Yes",
+  "churn_probability": 0.7832,
+  "model": "lightgbm"
+}
+```
+
+---
+
+## Drift Monitoring
+
+Every prediction is automatically logged to `logs/predictions.csv`. Evidently AI compares this production data against the reference dataset to detect distribution shifts.
+
+### Run analysis manually
+
+```bash
+# Via API (with Docker running)
+curl -X POST "http://localhost:8000/drift-run"
+
+# Or directly with Python
+python src/run_drift.py
+```
+
+### View the report
+
+Open in your browser:
+
+```
+http://localhost:8000/drift-report
+```
+
+The report includes:
+- Feature distribution comparison (reference vs production)
+- Automatic pass/fail tests per column
+- Alert if more than 2 columns show drift
+
+### Automated daily analysis
+
+The workflow `.github/workflows/drift_check.yml` runs the analysis every day at 08:00 UTC and uploads the report as a GitHub Actions artifact.
+
+---
+
+## Conclusion
+
+Logistic Regression serves as a useful baseline but is insufficient for churn detection on its own.
+
+Random Forest offers the best stability for this dataset, especially in recall and ROC-AUC.
 
 LightGBM demonstrates the strengths of boosting and provides competitive results when properly tuned.
 
-Metric selection is critical when dealing with imbalanced data.
+Metric selection is critical when dealing with imbalanced data — accuracy alone is misleading.
 
-![Confusion Matrix](https://github.com/belenarbizu/customer-churn/blob/main/images/confusion_matrix.png?raw=true)
-![ROC Curve](https://github.com/belenarbizu/customer-churn/blob/main/images/roc_curve.png?raw=true)
+---
+
+## Tech Stack
+
+| Category | Tools |
+|---|---|
+| Modeling | scikit-learn · LightGBM · pandas · numpy |
+| Experiment tracking | MLflow |
+| API | FastAPI · uvicorn · pydantic |
+| Containerization | Docker · Docker Compose |
+| Drift monitoring | Evidently AI |
+| CI | GitHub Actions |
