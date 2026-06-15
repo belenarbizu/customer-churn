@@ -200,7 +200,14 @@ def main():
     if not csv_files:
         raise FileNotFoundError(f"No se encontró ningún archivo CSV en {download_path}")
     
-    df = open_file(csv_files[0])
+    file_name = "WA_Fn-UseC_-Telco-Customer-Churn.csv"
+    for csv_file in csv_files:
+        if csv_file.name == file_name:
+            df = open_file(csv_file)
+            break
+    if file_name not in [csv_file.name for csv_file in csv_files]:
+        raise FileNotFoundError(f"No se encontró el archivo CSV '{file_name}' en {download_path}")
+
     X_train, X_test, y_train, y_test = split_data(df)
 
     if args.baseline:
@@ -211,7 +218,7 @@ def main():
         mlflow_baseline(base_model, base_report, base_score, base_params, 'baseline')
     if args.model:
         best_model, best_params, report, best_score, y_pred, y_proba = create_model(X_train, y_train, X_test, y_test)
-        save_predictions(y_test, y_pred, y_proba, LOGS_DIR / "predictions.csv")
+        save_predictions(y_test, y_pred, y_proba, LOGS_DIR / "predictions_forest.csv")
         save_model(best_model, MODELS_DIR / "model.pkl")
         save_info(best_params, report, best_score, MODELS_DIR / "metrics.json", MODELS_DIR / "params.json")
         mlflow_model_logging(best_model, report, best_score, best_params)

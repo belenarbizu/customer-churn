@@ -9,4 +9,4 @@ fastapi
 uvicorn
 pydantic
 joblib
-evidently
+evidently==0.4.33

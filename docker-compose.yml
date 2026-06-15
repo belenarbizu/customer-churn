@@ -9,6 +9,7 @@ services:
       - ./logs:/app/logs         # persiste los logs de predicciones
       - ./reports:/app/reports   # persiste los reportes de drift
       - ./models:/app/models     # monta los modelos entrenados
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
     depends_on:

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from pathlib import Path
 from datetime import date
+from fastapi.responses import FileResponse, JSONResponse
 
 # Añadir el directorio actual al path para que joblib encuentre el Preprocessor
 current_dir = Path(__file__).resolve().parent
@@ -181,6 +182,32 @@ def list_models():
     return {"models": list(models.keys())}
 
 
+@app.get("/drift-report", tags=["Monitoring"])
+def get_drift_report():
+    """Devuelve el último reporte HTML de drift generado."""
+    report_path = Path(__file__).parent.parent / "reports" / "drift_report.html"
+    if not report_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No hay reporte generado todavía. Ejecuta /drift-run primero."
+        )
+    return FileResponse(str(report_path), media_type="text/html")
+
+
+@app.post("/drift-run", tags=["Monitoring"])
+def trigger_drift(days: int = 7):
+    """Ejecuta el análisis de drift manualmente."""
+    try:
+        from run_drift import run_drift
+        result = run_drift(days=days)
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- Logging para Evidently (drift monitoring)
 
 def _log_prediction(data: CustomerData, proba: float, prediction: str, model_name: str):
@@ -195,5 +222,6 @@ def _log_prediction(data: CustomerData, proba: float, prediction: str, model_nam
         LOG_PATH,
         mode="a",
         header=not LOG_PATH.exists(),
-        index=False
+        index=False,
+        quoting=1
     )

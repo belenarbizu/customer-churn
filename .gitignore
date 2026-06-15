@@ -6,3 +6,4 @@ models/
 mlruns/
 mlflow.db
 logs/
+reports/
