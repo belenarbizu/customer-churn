@@ -1,9 +1,6 @@
-data/
 __pycache__/
 env/
 *.pkl
 models/
 mlruns/
 mlflow.db
-logs/
-reports/
