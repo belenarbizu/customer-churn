@@ -1,6 +1,5 @@
 __pycache__/
 env/
-*.pkl
-models/
+*.json
 mlruns/
 mlflow.db
