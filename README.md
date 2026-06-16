@@ -4,6 +4,8 @@ End-to-end MLOps project for predicting customer churn: model training with expe
 
 **Dataset**: [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) · **Stack**: Python · FastAPI · Docker · MLflow · LightGBM · scikit-learn · Evidently AI
 
+🚀 **Live API**: [customer-churn-api-lhqb.onrender.com/docs](https://customer-churn-api-lhqb.onrender.com/docs)
+
 ---
 
 ## Architecture
@@ -16,7 +18,7 @@ End-to-end MLOps project for predicting customer churn: model training with expe
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Production (Docker)                      │
+│                    Production (Docker + Render)             │
 │                                                             │
 │   FastAPI /predict  ──►  sklearn Pipeline + LightGBM        │
 │         │                                                   │
@@ -25,6 +27,12 @@ End-to-end MLOps project for predicting customer churn: model training with expe
 │                          ▼                                  │
 │              Evidently AI drift monitor                     │
 │              /drift-run  ──►  /drift-report                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    CI (GitHub Actions)                      │
+│         Daily drift check · pytest on every push            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,6 +50,8 @@ The project includes:
 - Model evaluation, visualization, and experiment tracking with MLflow
 - REST API with FastAPI, containerized with Docker
 - Automated data drift monitoring with Evidently AI
+- Test suite with pytest
+- Deployment on Render (free tier)
 - Daily CI via GitHub Actions
 
 ---
@@ -75,9 +85,9 @@ Used to compare bagging vs. boosting approaches. Improved ROC-AUC and recall whe
 
 | Model | ROC-AUC | F1 (churn) | Recall (churn) |
 |---|---|---|---|
-| Logistic Regression (baseline) | ~0.84 | ~0.61 | ~0.56 |
-| Random Forest | ~0.84 | ~0.63 | ~0.77 |
-| LightGBM | ~0.84 | ~0.63 | ~0.79 |
+| Logistic Regression (baseline) | 0.84 | 0.61 | 0.56 |
+| Random Forest | 0.84 | 0.63 | 0.77 |
+| LightGBM | 0.84 | 0.63 | 0.79 |
 
 All three models are available via the API. LightGBM is used by default.
 
@@ -106,21 +116,23 @@ customer-churn/
 │   ├── main.py               # FastAPI app
 │   ├── run_drift.py          # Drift analysis with Evidently
 │   └── export_reference.py   # Exports reference dataset (run once)
+├── tests/
+│   └── test_api.py           # pytest test suite (24 tests)
 ├── models/                   # Trained .pkl models
 ├── data/
 │   └── reference.csv         # Reference dataset for drift monitoring
 ├── logs/
-│   └── predictions.csv       # Production prediction log
+│   └── predictions.csv       # Production prediction log (auto-generated)
 ├── reports/
-│   └── drift_report.html     # Latest drift report
-├── images/                   # Evaluation plots
+│   └── drift_report.html     # Latest drift report (auto-generated)
 ├── .github/
 │   └── workflows/
 │       └── drift_check.yml   # Daily drift check CI
 ├── Dockerfile
 ├── docker-compose.yml
-└── requirements.txt
-└── setup.py
+├── Makefile
+├── requirements.txt
+├── setup.py
 └── setup.sh
 ```
 
@@ -133,6 +145,7 @@ customer-churn/
 - Python 3.11+
 - Docker Desktop
 - Kaggle account (dataset is downloaded automatically via `kagglehub`)
+- `make` (optional but recommended)
 
 ### 1. Clone the repository
 
@@ -142,6 +155,12 @@ cd customer-churn
 ```
 
 ### 2. Set up the environment
+
+```bash
+make install
+```
+
+Or manually:
 
 **Windows:**
 ```bash
@@ -157,22 +176,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Alternatively, use the provided setup scripts:
-```bash
-python setup.py        # cross-platform
-# or
-./setup.sh             # Linux/macOS
-```
-
 ### 3. Train the models
 
-Artifacts are saved to `models/` and experiments tracked in MLflow:
-
 ```bash
-python src/train.py -b    # Baseline (Logistic Regression)
-python src/train.py -m    # Random Forest
-python src/train.py -l    # LightGBM (recommended)
+make train-all         # trains all three models
+# or individually:
+make train-baseline    # Logistic Regression
+make train-rf          # Random Forest
+make train-lgbm        # LightGBM
 ```
+
+Artifacts are saved to `models/` and experiments tracked in MLflow.
 
 ### 4. Generate visualizations
 
@@ -185,7 +199,7 @@ Plots are saved to `images/`: confusion matrix, ROC curve, and feature importanc
 ### 5. View experiments in MLflow
 
 ```bash
-mlflow ui --port 5000
+make mlflow
 ```
 
 Open `http://localhost:5000` to compare metrics across runs.
@@ -195,7 +209,7 @@ Open `http://localhost:5000` to compare metrics across runs.
 Required for drift monitoring. Only needs to be run once:
 
 ```bash
-python src/export_reference.py
+make reference
 ```
 
 Generates `data/reference.csv` from the training split.
@@ -203,24 +217,42 @@ Generates `data/reference.csv` from the training split.
 ### 7. Start the API with Docker
 
 ```bash
-docker-compose up --build
+make serve
 ```
 
 This starts two services:
 - **API**: `http://localhost:8000`
 - **MLflow**: `http://localhost:5000`
 
+To stop:
+```bash
+make stop
+```
+
+### 8. Run the tests
+
+```bash
+make test
+```
+
+Runs 24 pytest tests covering endpoints, data validation, the preprocessor, and integration flows.
+
 ---
 
 ## API Usage
 
-Interactive documentation is available at `http://localhost:8000/docs`.
+Interactive documentation available at:
+- **Local**: `http://localhost:8000/docs`
+- **Production**: `https://customer-churn-api.onrender.com/docs`
+
+> Note: the free Render instance sleeps after 15 minutes of inactivity. The first request may take ~30 seconds to wake up.
 
 ### Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/` | Health check |
+| GET | `/health` | Service status and loaded models |
 | GET | `/models` | List available models |
 | POST | `/predict` | Predict with best model (LightGBM) |
 | POST | `/predict/{model_name}` | Predict with a specific model |
@@ -232,7 +264,7 @@ Available model names: `baseline`, `random_forest`, `lightgbm`.
 ### Prediction example
 
 ```bash
-curl -X POST "http://localhost:8000/predict" \
+curl -X POST "https://customer-churn-api.onrender.com/predict" \
   -H "Content-Type: application/json" \
   -d '{
     "gender": "Female",
@@ -273,14 +305,14 @@ Response:
 
 Every prediction is automatically logged to `logs/predictions.csv`. Evidently AI compares this production data against the reference dataset to detect distribution shifts.
 
-### Run analysis manually
+### Run analysis
 
 ```bash
-# Via API (with Docker running)
+# Via API
 curl -X POST "http://localhost:8000/drift-run"
 
 # Or directly with Python
-python src/run_drift.py
+make drift
 ```
 
 ### View the report
@@ -299,6 +331,24 @@ The report includes:
 ### Automated daily analysis
 
 The workflow `.github/workflows/drift_check.yml` runs the analysis every day at 08:00 UTC and uploads the report as a GitHub Actions artifact.
+
+---
+
+## Available Make Commands
+
+```bash
+make install        # install dependencies
+make train-all      # train all three models
+make train-baseline # train Logistic Regression
+make train-rf       # train Random Forest
+make train-lgbm     # train LightGBM
+make reference      # export reference.csv for drift monitoring
+make serve          # start API + MLflow with Docker
+make stop           # stop Docker services
+make test           # run pytest suite
+make drift          # run drift analysis
+make mlflow         # open MLflow UI
+```
 
 ---
 
@@ -323,4 +373,6 @@ Metric selection is critical when dealing with imbalanced data — accuracy alon
 | API | FastAPI · uvicorn · pydantic |
 | Containerization | Docker · Docker Compose |
 | Drift monitoring | Evidently AI |
-| CI | GitHub Actions |
+| Testing | pytest |
+| CI/CD | GitHub Actions |
+| Deployment | Render |
