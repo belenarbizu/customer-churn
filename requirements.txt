@@ -10,3 +10,5 @@ uvicorn
 pydantic
 joblib
 evidently==0.4.33
+pytest
+httpx2
