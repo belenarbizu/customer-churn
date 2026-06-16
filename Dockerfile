@@ -10,8 +10,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
+COPY models/ ./models/
 
-RUN mkdir -p logs reports models
+RUN mkdir -p logs reports data
 
 EXPOSE 8000
 
