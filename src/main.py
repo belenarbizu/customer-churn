@@ -106,7 +106,7 @@ class CustomerData(BaseModel):
 
 # --- Endpoints
 
-@app.get("/", tags=["Health"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Health"])
 def root():
     return {"status": "ok", "models_loaded": list(models.keys())}
 
