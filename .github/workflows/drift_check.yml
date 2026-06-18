@@ -16,7 +16,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install evidently pandas scikit-learn
+        run: pip install evidently==0.4.33 pandas scikit-learn
 
       - name: Run drift check
         run: python src/run_drift.py
